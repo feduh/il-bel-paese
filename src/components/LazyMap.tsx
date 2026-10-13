@@ -263,11 +263,10 @@ const LazyMap = ({
         style={{ height: "100%", width: "100%" }}
         className="ibp-map"
       >
-        {/* CartoDB Voyager: colori/carattere editoriale + tag `name` OSM (in Italia = italiano) */}
+        {/* OpenStreetMap standard tiles: gratuiti, senza API key (CARTO Voyager ora richiede una chiave) */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={19}
         />
         <ZoomControl position="bottomright" />
