@@ -15,6 +15,7 @@ import MarkdownEditor from "@/components/editor/MarkdownEditor";
 import CoverImageUpload from "@/components/editor/CoverImageUpload";
 import { articleSchema, fieldErrors, type FieldErrors } from "@/lib/validation";
 import { ARTICLE_CATEGORIES, parseCategories, serializeCategories } from "@/lib/articleCategories";
+import { firstReviewSlot, isValidReviewDate, romeParts, romeToDate } from "@/lib/reviewWindow";
 
 const slugify = (s: string) =>
   s
@@ -49,7 +50,10 @@ const ArticoloEditor = () => {
   const [postEditionId, setPostEditionId] = useState<string | null>(editionIdParam);
   const [postSpecialIssueId, setPostSpecialIssueId] = useState<string | null>(specialIssueIdParam);
   const [hasEditorialControl, setHasEditorialControl] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<"draft" | "pending" | "scheduled" | "published">("draft");
+  type PostStatus = "draft" | "pending" | "scheduled" | "rejected" | "published";
+  const [currentStatus, setCurrentStatus] = useState<PostStatus>("draft");
+  const [rejectionNote, setRejectionNote] = useState<string | null>(null);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(id ?? null);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -92,7 +96,7 @@ const ArticoloEditor = () => {
 
 
   const isStaff = useMemo(
-    () => myRoles.includes("admin") || myRoles.includes("moderator"),
+    () => myRoles.includes("admin") || myRoles.includes("moderator") || myRoles.includes("coordinatore"),
     [myRoles]
   );
 
@@ -146,6 +150,9 @@ const ArticoloEditor = () => {
   }, [user, myRoles, postEditionId, postSpecialIssueId]);
 
   const canPublish = isStaff || hasEditorialControl;
+  // Authors cannot touch a submitted article: they must withdraw it first (enforced by the database too)
+  const isLocked =
+    rolesLoaded && !canPublish && ["scheduled", "pending", "rejected"].includes(currentStatus);
 
   // Load roles
   useEffect(() => {
@@ -182,14 +189,14 @@ const ArticoloEditor = () => {
         content: data.content,
         coverImageUrl: data.cover_image_url ?? "",
       });
-      setCurrentStatus(data.status as "draft" | "pending" | "scheduled" | "published");
+      setCurrentStatus(data.status as PostStatus);
+      setRejectionNote(data.rejection_note ?? null);
       setPostEditionId((data as { editorial_edition_id: string | null }).editorial_edition_id ?? null);
       setPostSpecialIssueId((data as { special_issue_id: string | null }).special_issue_id ?? null);
       if (data.status === "scheduled" && data.scheduled_for) {
-        const dt = new Date(data.scheduled_for);
-        const pad = (n: number) => String(n).padStart(2, "0");
-        setScheduleDate(`${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`);
-        setScheduleTime(`${pad(dt.getHours())}:${pad(dt.getMinutes())}`);
+        const p = romeParts(new Date(data.scheduled_for));
+        setScheduleDate(p.date);
+        setScheduleTime(p.time);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const decl = (data as any).copyright_declaration;
@@ -220,7 +227,7 @@ const ArticoloEditor = () => {
   // Autosave drafts (debounced 30s) — only for posts not yet published
   useEffect(() => {
     if (!user || loading || submitting) return;
-    if (currentStatus === "published") return;
+    if (currentStatus === "published" || isLocked) return;
     if (!form.title.trim() || !form.content.trim()) return;
 
     const snapshot = JSON.stringify(form);
@@ -280,7 +287,7 @@ const ArticoloEditor = () => {
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [form, user, loading, submitting, currentStatus, editingId]);
+  }, [form, user, loading, submitting, currentStatus, editingId, isLocked]);
 
   if (!user) {
     navigate("/login");
@@ -290,6 +297,12 @@ const ArticoloEditor = () => {
   const submit = async (mode: "draft" | "submit" | "schedule") => {
     setErrs({});
     setGlobalError("");
+
+    // Authors always submit with a publication date (24h review window)
+    if (mode === "submit" && !canPublish) {
+      openSchedule();
+      return;
+    }
 
     const parsed = articleSchema(t).safeParse(form);
     if (!parsed.success) {
@@ -304,9 +317,16 @@ const ArticoloEditor = () => {
         setGlobalError("Seleziona data e orario di pubblicazione.");
         return;
       }
-      const dt = new Date(`${scheduleDate}T${scheduleTime}:00`);
+      const dt = romeToDate(scheduleDate, scheduleTime);
       if (isNaN(dt.getTime())) {
         setGlobalError("Data o orario non valido.");
+        return;
+      }
+      if (!canPublish && !isValidReviewDate(dt)) {
+        const p = romeParts(firstReviewSlot());
+        setGlobalError(
+          `La data di pubblicazione deve essere almeno 24 ore dopo l'invio: la prima data utile è il ${p.date.split("-").reverse().join("/")} alle ${p.time}.`,
+        );
         return;
       }
       if (dt.getTime() <= Date.now()) {
@@ -368,7 +388,7 @@ const ArticoloEditor = () => {
     const targetStatus =
       mode === "draft" ? "draft"
       : mode === "schedule" ? "scheduled"
-      : canPublish ? "published" : "pending";
+      : "published";
 
     // Author name from profile
     const { data: prof } = await supabase
@@ -440,6 +460,35 @@ const ArticoloEditor = () => {
     navigate("/area-personale");
   };
 
+  const withdraw = async () => {
+    if (!editingId) return;
+    setSubmitting(true);
+    setGlobalError("");
+    const { error } = await supabase.from("blog_posts").update({ status: "draft" }).eq("id", editingId);
+    setSubmitting(false);
+    if (error) {
+      setGlobalError(error.message);
+      return;
+    }
+    setCurrentStatus("draft");
+    setScheduleDate("");
+    setScheduleTime("");
+  };
+
+  const openSchedule = () => {
+    // Authors: preselect the first allowed slot (submission + 24h)
+    if (!canPublish) {
+      const first = firstReviewSlot();
+      const chosen = scheduleDate && scheduleTime ? romeToDate(scheduleDate, scheduleTime) : null;
+      if (!chosen || chosen.getTime() < first.getTime()) {
+        const p = romeParts(first);
+        setScheduleDate(p.date);
+        setScheduleTime(p.time);
+      }
+    }
+    setScheduleOpen(true);
+  };
+
   const halfHourSlots = useMemo(() => {
     const arr: string[] = [];
     for (let h = 0; h < 24; h++) {
@@ -447,7 +496,7 @@ const ArticoloEditor = () => {
     }
     return arr;
   }, []);
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const minDate = canPublish ? romeParts(new Date()).date : romeParts(firstReviewSlot()).date;
 
   if (loading) {
     return (
@@ -491,6 +540,8 @@ const ArticoloEditor = () => {
               {globalError}
             </div>
           )}
+          <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70">
+
 
           <div>
             <label className="block text-sm font-body font-medium mb-2">Titolo *</label>
@@ -718,7 +769,33 @@ const ArticoloEditor = () => {
               </div>
             )}
           </div>
+          </fieldset>
 
+          {isLocked ? (
+            <div className="pt-4 border-t border-border space-y-3">
+              {currentStatus === "rejected" ? (
+                <div role="alert" className="p-4 rounded-md border border-destructive/40 bg-destructive/10 text-sm font-body">
+                  <strong className="text-destructive">Articolo respinto.</strong>
+                  {rejectionNote && <p className="mt-1 whitespace-pre-line">Nota della redazione: {rejectionNote}</p>}
+                  <p className="mt-2 text-muted-foreground">Riportalo in bozza per modificarlo e reinviarlo.</p>
+                </div>
+              ) : (
+                <div className="p-4 rounded-md border border-border bg-muted/40 text-sm font-body">
+                  <strong>Articolo in revisione.</strong>{" "}
+                  {scheduleDate && scheduleTime && <>Verrà pubblicato il {scheduleDate.split("-").reverse().join("/")} alle {scheduleTime} (ora italiana) se nessuno lo ferma. </>}
+                  Per modificarlo ritiralo in bozza: alla nuova consegna le 24 ore ripartono.
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={withdraw}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md border border-border font-body font-medium text-sm hover:border-primary/40 disabled:opacity-50"
+              >
+                <ArrowLeft size={14} /> Ritira in bozza
+              </button>
+            </div>
+          ) : (
           <div className="flex items-center gap-3 flex-wrap pt-4 border-t border-border">
             <button
               type="button"
@@ -728,14 +805,15 @@ const ArticoloEditor = () => {
             >
               <Save size={14} /> Salva bozza
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground font-body font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              <Send size={14} />
-              {canPublish ? "Pubblica" : "Invia per pubblicazione"}
-            </button>
+            {canPublish && (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground font-body font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Send size={14} /> Pubblica
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -743,24 +821,26 @@ const ArticoloEditor = () => {
             >
               <Eye size={14} /> Anteprima
             </button>
-            <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+            <Popover open={scheduleOpen} onOpenChange={(o) => (o ? openSchedule() : setScheduleOpen(false))}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md border border-input font-body font-medium text-sm hover:border-primary/40 transition-colors disabled:opacity-50"
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-md font-body font-medium text-sm transition-colors disabled:opacity-50 ${
+                    canPublish ? "border border-input hover:border-primary/40" : "bg-primary text-primary-foreground hover:opacity-90"
+                  }`}
                 >
-                  <CalendarClock size={14} />
-                  {currentStatus === "scheduled" ? "Riprogramma" : "Programma"}
+                  {canPublish ? <CalendarClock size={14} /> : <Send size={14} />}
+                  {canPublish ? (currentStatus === "scheduled" ? "Riprogramma" : "Programma") : "Invia per pubblicazione"}
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-80 p-4 space-y-3 z-50 bg-popover">
                 <div>
-                  <label className="block text-xs font-body font-medium mb-1">Data</label>
+                  <label className="block text-xs font-body font-medium mb-1">Data (ora italiana)</label>
                   <input
                     type="date"
                     value={scheduleDate}
-                    min={todayIso}
+                    min={minDate}
                     onChange={(e) => setScheduleDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background font-body text-sm"
                   />
@@ -779,9 +859,9 @@ const ArticoloEditor = () => {
                   </select>
                 </div>
                 <p className="text-xs font-body text-muted-foreground">
-                  {isStaff
+                  {canPublish
                     ? "L'articolo verrà pubblicato automaticamente all'orario indicato."
-                    : "L'articolo verrà pubblicato automaticamente all'orario indicato, senza ulteriore moderazione."}
+                    : "La redazione ha 24 ore per rivederlo: se nessuno lo ferma, verrà pubblicato automaticamente all'orario indicato. Dopo l'invio non potrai modificarlo senza ritirarlo."}
                 </p>
                 <div className="flex justify-end gap-2 pt-2 border-t border-border">
                   <button
@@ -797,7 +877,7 @@ const ArticoloEditor = () => {
                     disabled={submitting || !scheduleDate || !scheduleTime}
                     className="px-3 py-1.5 rounded-md text-xs font-body bg-primary text-primary-foreground disabled:opacity-50"
                   >
-                    Conferma
+                    {canPublish ? "Conferma" : "Invia"}
                   </button>
                 </div>
               </PopoverContent>
@@ -828,7 +908,7 @@ const ArticoloEditor = () => {
             ) : null}
             {!canPublish && (
               <p className="text-xs text-muted-foreground font-body w-full">
-                Il tuo articolo verrà rivisto da un membro dello staff prima della pubblicazione.
+                La prima data utile è 24 ore dopo l'invio: in questo tempo la redazione può rivedere l'articolo.
               </p>
             )}
             {!isStaff && hasEditorialControl && (
@@ -837,6 +917,7 @@ const ArticoloEditor = () => {
               </p>
             )}
           </div>
+          )}
         </form>
 
         {/* Anteprima articolo */}
