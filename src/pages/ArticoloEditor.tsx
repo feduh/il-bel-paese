@@ -163,6 +163,7 @@ const ArticoloEditor = () => {
       .eq("user_id", user.id)
       .then(({ data }) => {
         setMyRoles((data ?? []).map((r: { role: string }) => r.role));
+        setRolesLoaded(true);
       });
   }, [user]);
 
