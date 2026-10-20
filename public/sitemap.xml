@@ -182,24 +182,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://il-bel-paese.lovable.app/bollettino/la-periferia-come-laboratorio-2025</loc>
-    <lastmod>2025-04-12</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://il-bel-paese.lovable.app/bollettino/capannoni-e-poi-2025</loc>
-    <lastmod>2025-06-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://il-bel-paese.lovable.app/bollettino/il-pubblico-che-manca-2025</loc>
-    <lastmod>2025-09-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://il-bel-paese.lovable.app/autori/5ec3b19f-1adb-4ecd-986b-04e06dd315db</loc>
     <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>
@@ -230,8 +212,14 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://il-bel-paese.lovable.app/autori/28bc4cae-dca8-469b-b6d0-7803921e40dc</loc>
-    <lastmod>2026-07-29</lastmod>
+    <loc>https://il-bel-paese.lovable.app/autori/c45ec89b-cb60-4ac6-ac0e-899c4016d16d</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://il-bel-paese.lovable.app/autori/05ed9f7d-ac3b-4f11-b6cf-38acfc9173ac</loc>
+    <lastmod>2026-08-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
