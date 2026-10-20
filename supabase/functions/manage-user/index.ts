@@ -60,6 +60,13 @@ const opSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("delete_user"),
     user_id: z.string().uuid(),
+    mode: z.enum(["keep", "all"], {
+      errorMap: () => ({ message: "Scegli un'opzione di eliminazione" }),
+    }),
+  }),
+  z.object({
+    op: z.literal("delete_user_preview"),
+    user_id: z.string().uuid(),
   }),
   z.object({
     op: z.literal("update_user"),
@@ -297,18 +304,79 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
-    // ---------- DELETE (HARD) ----------
+    // ---------- DELETE PREVIEW ----------
+    if (data.op === "delete_user_preview") {
+      const { data: preview, error } = await admin.rpc("admin_user_delete_preview", {
+        _target: data.user_id,
+      });
+      if (error) return json({ error: error.message }, 500);
+      return json({ preview });
+    }
+
+    // ---------- DELETE (two modes) ----------
     if (data.op === "delete_user") {
       if (isSelf) return json({ error: "Non puoi eliminare il tuo account." }, 400);
-      // Rimuove definitivamente l'utente: profilo, ruoli, articoli, candidature
-      // e segnalibri vengono eliminati a cascata dal database.
-      const { error } = await admin.auth.admin.deleteUser(data.user_id);
-      if (error) return json({ error: error.message }, 400);
-      // Pulizia difensiva di eventuali record residui
-      await admin.from("profiles").delete().eq("user_id", data.user_id);
-      await admin.from("user_roles").delete().eq("user_id", data.user_id);
-      await admin.from("notifications").delete().eq("user_id", data.user_id);
-      return json({ ok: true });
+      const target = data.user_id;
+
+      // 1. Sospensione (reversibile): blocca subito l'accesso
+      const { error: banErr } = await admin.auth.admin.updateUserById(target, {
+        ban_duration: "876000h",
+      });
+      if (banErr) {
+        return json({ error: `Impossibile sospendere l'utente: ${banErr.message}` }, 400);
+      }
+
+      // 2. Contenuti + audit in un'unica transazione (idempotente)
+      const { data: result, error: rpcErr } = await admin.rpc("admin_delete_user_content", {
+        _target: target,
+        _actor: caller.id,
+        _mode: data.mode,
+      });
+      if (rpcErr) {
+        await admin.auth.admin.updateUserById(target, { ban_duration: "none" });
+        return json({ error: `Eliminazione annullata, nessun dato modificato: ${rpcErr.message}` }, 500);
+      }
+
+      // 3. Cancellazione account (profilo e ruoli residui in cascata)
+      const { error: delErr } = await admin.auth.admin.deleteUser(target);
+      if (delErr) {
+        return json(
+          {
+            error:
+              "Eliminazione incompleta: i contenuti sono stati gestiti e l'utente è sospeso, ma l'account non è stato rimosso. Riprova.",
+          },
+          500,
+        );
+      }
+      await admin.from("profiles").delete().eq("user_id", target);
+
+      // 4. Pulizia storage (non bloccante)
+      const warnings: string[] = [];
+      const buckets = data.mode === "all" ? ["avatars", "blog-covers"] : ["avatars"];
+      for (const bucket of buckets) {
+        try {
+          const { data: files, error: listErr } = await admin.storage
+            .from(bucket)
+            .list(target, { limit: 1000 });
+          if (listErr) throw listErr;
+          const paths = (files ?? []).map((f) => `${target}/${f.name}`);
+          if (paths.length) {
+            const { error: rmErr } = await admin.storage.from(bucket).remove(paths);
+            if (rmErr) throw rmErr;
+          }
+        } catch (e) {
+          warnings.push(`File in "${bucket}" non rimossi: ${(e as Error).message}`);
+        }
+      }
+      if (warnings.length) {
+        await admin.rpc("admin_audit_note", {
+          _target: target,
+          _actor: caller.id,
+          _note: `storage_cleanup_failed: ${warnings.join("; ")}`,
+        });
+      }
+
+      return json({ ok: true, result, warnings });
     }
 
     // ---------- UPDATE USER (email / display name / affiliation) ----------
