@@ -19,6 +19,7 @@ type Submission = {
   id: string;
   edition_id: string;
   author_user_id: string;
+  author_deleted?: boolean;
   title: string;
   abstract: string;
   outline: string | null;
@@ -566,7 +567,7 @@ const PanelEditorialeCuratela = ({ userId }: { userId: string }) => {
               <SubmissionCard
                 key={s.id}
                 s={s}
-                authorName={authorMap[s.author_user_id] ?? "Autore"}
+                authorName={s.author_deleted ? "Autore rimosso" : authorMap[s.author_user_id] ?? "Autore"}
                 onStatus={(st) => updateStatus(s, st)}
                 onSaveNotes={(notes) => saveNotes(s, notes)}
               />
