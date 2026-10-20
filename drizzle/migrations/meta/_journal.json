@@ -8,6 +8,13 @@
       "when": 1792456233386,
       "tag": "0000_user_deletion_and_author_review_window",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792456542594,
+      "tag": "0001_blog_posts_allow_rejected_status",
+      "breakpoints": true
     }
   ]
 }
