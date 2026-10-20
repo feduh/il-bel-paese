@@ -22,7 +22,8 @@ import type { AreaPost, AreaPostStatus } from "./types";
 const STATUS_LABEL: Record<AreaPostStatus, { label: string; tone: string; icon: typeof Clock }> = {
   draft: { label: "Bozza", tone: "bg-zinc-700 text-white", icon: FileText },
   pending: { label: "In moderazione", tone: "bg-amber-500 text-white", icon: Clock },
-  scheduled: { label: "Programmato", tone: "bg-sky-600 text-white", icon: Clock },
+  scheduled: { label: "In revisione / programmato", tone: "bg-sky-600 text-white", icon: Clock },
+  rejected: { label: "Respinto", tone: "bg-destructive text-destructive-foreground", icon: X },
   published: { label: "Pubblicato", tone: "bg-emerald-600 text-white", icon: CheckCircle2 },
 };
 
@@ -142,7 +143,8 @@ const PanelArticoli = ({ posts, isStaff, onChanged, presetCategory, title, icon:
           <option value="all">Tutti gli stati</option>
           <option value="draft">Bozze</option>
           <option value="pending">In moderazione</option>
-          <option value="scheduled">Programmati</option>
+          <option value="scheduled">In revisione / programmati</option>
+          <option value="rejected">Respinti</option>
           <option value="published">Pubblicati</option>
         </select>
         <div className="inline-flex items-center rounded-md border border-input bg-background overflow-hidden">
@@ -210,7 +212,13 @@ const PanelArticoli = ({ posts, isStaff, onChanged, presetCategory, title, icon:
                   <h3 className="font-display font-semibold mb-2 line-clamp-2">{p.title}</h3>
                   {p.status === "scheduled" && p.scheduled_for && (
                     <p className="text-xs font-body text-sky-600 mb-2">
-                      Programmato: {new Date(p.scheduled_for).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short" })}
+                      {p.submitted_at ? "In revisione, pubblicazione il " : "Programmato: "}
+                      {new Date(p.scheduled_for).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Rome" })}
+                    </p>
+                  )}
+                  {p.status === "rejected" && p.rejection_note && (
+                    <p className="text-xs font-body text-destructive mb-2 line-clamp-3">
+                      Nota: {p.rejection_note}
                     </p>
                   )}
                   <p className="text-sm font-body text-muted-foreground line-clamp-3 flex-1">{p.excerpt}</p>

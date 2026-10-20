@@ -20,7 +20,7 @@ export type AreaProfile = {
   figure_category: string | null;
 };
 
-export type AreaPostStatus = "draft" | "pending" | "scheduled" | "published";
+export type AreaPostStatus = "draft" | "pending" | "scheduled" | "rejected" | "published";
 
 export type AreaPost = {
   id: string;
@@ -32,6 +32,8 @@ export type AreaPost = {
   cover_image_url: string | null;
   published_at: string;
   scheduled_for: string | null;
+  submitted_at?: string | null;
+  rejection_note?: string | null;
 };
 
 export type AreaModerationPost = AreaPost & { author_name: string; user_id: string };

@@ -125,21 +125,18 @@ const AreaPersonale = () => {
     const { data: mine } = await supabase
       .from("blog_posts")
       .select(
-        "id, slug, title, excerpt, status, category, cover_image_url, published_at, scheduled_for",
+        "id, slug, title, excerpt, status, category, cover_image_url, published_at, scheduled_for, submitted_at, rejection_note",
       )
       .eq("user_id", user.id)
       .order("published_at", { ascending: false });
     setPosts((mine as AreaPost[]) ?? []);
 
-    if (rs.includes("admin") || rs.includes("moderator") || rs.includes("coordinatore")) {
-      const { data: queue } = await supabase
-        .from("blog_posts")
-        .select(
-          "id, slug, title, excerpt, status, category, cover_image_url, published_at, scheduled_for, author_name, user_id",
-        )
-        .eq("status", "pending")
-        .order("published_at", { ascending: true });
-      const list = (queue as AreaModerationPost[]) ?? [];
+    if (
+      rs.includes("admin") || rs.includes("moderator") || rs.includes("coordinatore") ||
+      editionIds.length > 0 || issueIds.length > 0
+    ) {
+      const { data: queue } = await supabase.rpc("review_queue");
+      const list = ((queue ?? []) as unknown as AreaModerationPost[]).filter((p) => p.user_id !== user.id);
       setModerationQueue(list);
       const names = await fetchAuthorNames(list.map((p) => p.user_id));
       setModNameMap(names);
@@ -430,7 +427,7 @@ const AreaPersonale = () => {
           </div>
         ) : null;
       case "moderazione":
-        return isStaff ? (
+        return isStaff || isCurator ? (
           <PanelModerazione
             queue={moderationQueue}
             nameMap={modNameMap}
