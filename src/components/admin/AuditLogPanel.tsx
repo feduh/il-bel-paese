@@ -5,7 +5,7 @@ import { ScrollText, RefreshCcw, Download } from "lucide-react";
 type AuditEntry = {
   id: string;
   actor_email: string | null;
-  action: "INSERT" | "UPDATE" | "DELETE";
+  action: "INSERT" | "UPDATE" | "DELETE" | "DELETE_USER" | "DELETE_USER_NOTE";
   table_name: string;
   row_id: string | null;
   created_at: string;
@@ -17,23 +17,32 @@ const tableLabel: Record<string, string> = {
   realities: "Realtà",
   blog_posts: "Articolo",
   user_roles: "Ruolo utente",
+  "auth.users": "Utente",
 };
 
 const actionStyle: Record<AuditEntry["action"], string> = {
   INSERT: "bg-secondary/15 text-secondary",
   UPDATE: "bg-primary/10 text-primary",
   DELETE: "bg-destructive/10 text-destructive",
+  DELETE_USER: "bg-destructive/15 text-destructive",
+  DELETE_USER_NOTE: "bg-muted text-muted-foreground",
 };
 
 const actionLabel: Record<AuditEntry["action"], string> = {
   INSERT: "Creato",
   UPDATE: "Modificato",
   DELETE: "Eliminato",
+  DELETE_USER: "Utente eliminato",
+  DELETE_USER_NOTE: "Nota eliminazione",
 };
 
 const describeRow = (entry: AuditEntry): string => {
   const data = entry.new_data ?? entry.old_data ?? {};
   const d = data as Record<string, unknown>;
+  if (entry.action === "DELETE_USER") {
+    return `ID ${entry.row_id?.slice(0, 8)} · ${d.mode === "all" ? "elimina tutto" : "mantieni i post"} · ${d.posts_count ?? 0} articoli`;
+  }
+  if (entry.action === "DELETE_USER_NOTE") return String(d.note ?? "");
   return (
     (d.name as string) ||
     (d.title as string) ||

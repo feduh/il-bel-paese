@@ -80,7 +80,7 @@ const AutoreProfilo = () => {
   if (notFound || !profile) {
     return (
       <div className="py-20 editorial-container text-center">
-        <p className="font-body text-muted-foreground mb-4">Autore non trovato.</p>
+        <p className="font-body text-muted-foreground mb-4">Autore non più presente o profilo non pubblico.</p>
         <Link to="/la-rete" className="text-primary hover:underline font-body text-sm">
           ← Torna a La rete
         </Link>

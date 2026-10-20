@@ -107,7 +107,7 @@ const AreaSidebar = ({
     community.push({ value: "realta", label: "Realtà", icon: MapPin, badge: badges.realta });
   if (canInviteMembers)
     community.push({ value: "membri", label: "Membri", icon: UserPlus });
-  if (isStaff)
+  if (isStaff || isCurator)
     community.push({
       value: "moderazione",
       label: "Moderazione",

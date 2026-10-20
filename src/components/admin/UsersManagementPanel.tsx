@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeFunction } from "@/lib/invokeFunction";
 import { Users, Shield, KeyRound, Ban, Trash2, RefreshCw, Search, Pencil } from "lucide-react";
 import { PASSWORD_RULES, passwordSchema, passwordStrength } from "@/lib/passwordPolicy";
+import DeleteUserDialog from "./DeleteUserDialog";
 
 type AppRole =
   | "admin"
@@ -157,9 +158,9 @@ const UsersManagementPanel = () => {
     );
   };
 
-  const deleteUser = async (u: ManagedUser) => {
-    if (!confirm(`Eliminare definitivamente ${u.profile?.display_name ?? u.email}?\nL'account sparirà dalla gestione utenti. Verranno eliminati anche il profilo, i ruoli, gli articoli e le candidature dell'utente. Operazione irreversibile.`)) return;
-    await call({ op: "delete_user", user_id: u.id }, "Account eliminato");
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+  const deleteUser = (u: ManagedUser) => {
+    setDeleting({ id: u.id, name: u.profile?.display_name ?? u.email ?? "utente" });
   };
 
   return (
@@ -519,6 +520,15 @@ const UsersManagementPanel = () => {
           })}
         </div>
       )}
+      <DeleteUserDialog
+        user={deleting}
+        onClose={() => setDeleting(null)}
+        onDone={(text, ok) => {
+          setDeleting(null);
+          setFeedback({ kind: ok ? "ok" : "err", text });
+          void fetchUsers();
+        }}
+      />
     </div>
   );
 };

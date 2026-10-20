@@ -19,6 +19,7 @@ type Post = {
   content: string;
   author_name: string;
   user_id: string;
+  author_deleted?: boolean;
   category: string;
   cover_image_url: string | null;
   published_at: string;
@@ -66,7 +67,7 @@ const MagazinePost = () => {
       const names = await fetchAuthorNames([p?.user_id]);
       if (!cancelled) setNameMap(names);
 
-      if (p?.user_id) {
+      if (p?.user_id && !p.author_deleted) {
         const { data: bioData } = await supabase
           .from("profiles")
           .select("user_id, display_name, author_bio, avatar_url, affiliation")
@@ -140,12 +141,18 @@ const MagazinePost = () => {
         <h1 className="font-display uppercase tracking-tight leading-[0.95] text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-6 break-words hyphens-auto" style={{ fontVariationSettings: "'wght' 700" }}>{post.title}</h1>
 
         <div className="flex items-center gap-5 text-sm text-muted-foreground font-body mb-10 pb-10 border-b border-border flex-wrap">
-          <Link
-            to={`/autori/${post.user_id}`}
-            className="flex items-center gap-1.5 hover:text-primary transition-colors"
-          >
-            <User size={14} /> <span className="underline decoration-dotted underline-offset-2">{resolveAuthorName(nameMap, post.user_id, post.author_name)}</span>
-          </Link>
+          {post.author_deleted ? (
+            <span className="flex items-center gap-1.5">
+              <User size={14} /> {post.author_name}
+            </span>
+          ) : (
+            <Link
+              to={`/autori/${post.user_id}`}
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
+              <User size={14} /> <span className="underline decoration-dotted underline-offset-2">{resolveAuthorName(nameMap, post.user_id, post.author_name)}</span>
+            </Link>
+          )}
 
           <span className="flex items-center gap-1.5">
             <Calendar size={14} />

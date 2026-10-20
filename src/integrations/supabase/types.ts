@@ -52,6 +52,7 @@ export type Database = {
       }
       blog_posts: {
         Row: {
+          author_deleted: boolean
           author_name: string
           category: string
           content: string
@@ -68,15 +69,20 @@ export type Database = {
           podcast_kind: string | null
           podcast_url: string | null
           published_at: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
           scheduled_for: string | null
           slug: string
           special_issue_id: string | null
           status: string
+          submitted_at: string | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          author_deleted?: boolean
           author_name: string
           category: string
           content?: string
@@ -93,15 +99,20 @@ export type Database = {
           podcast_kind?: string | null
           podcast_url?: string | null
           published_at?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
           scheduled_for?: string | null
           slug: string
           special_issue_id?: string | null
           status?: string
+          submitted_at?: string | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          author_deleted?: boolean
           author_name?: string
           category?: string
           content?: string
@@ -118,10 +129,14 @@ export type Database = {
           podcast_kind?: string | null
           podcast_url?: string | null
           published_at?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
           scheduled_for?: string | null
           slug?: string
           special_issue_id?: string | null
           status?: string
+          submitted_at?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -280,6 +295,7 @@ export type Database = {
       editorial_submissions: {
         Row: {
           abstract: string
+          author_deleted: boolean
           author_user_id: string
           converted_post_id: string | null
           created_at: string
@@ -295,6 +311,7 @@ export type Database = {
         }
         Insert: {
           abstract: string
+          author_deleted?: boolean
           author_user_id: string
           converted_post_id?: string | null
           created_at?: string
@@ -310,6 +327,7 @@ export type Database = {
         }
         Update: {
           abstract?: string
+          author_deleted?: boolean
           author_user_id?: string
           converted_post_id?: string | null
           created_at?: string
@@ -741,9 +759,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_audit_note: {
+        Args: { _actor: string; _note: string; _target: string }
+        Returns: undefined
+      }
+      admin_delete_user_content: {
+        Args: { _actor: string; _mode: string; _target: string }
+        Returns: Json
+      }
+      admin_user_delete_preview: { Args: { _target: string }; Returns: Json }
       auto_confirm_pending_realities: { Args: never; Returns: number }
       can_manage_special_issue: {
         Args: { _special_issue_id: string }
+        Returns: boolean
+      }
+      can_review_post: {
+        Args: { _edition_id: string; _special_issue_id: string }
         Returns: boolean
       }
       get_public_stats: {
@@ -775,7 +806,50 @@ export type Database = {
         Args: { _special_issue_id: string }
         Returns: boolean
       }
+      is_privileged_publisher: {
+        Args: { _edition_id: string; _special_issue_id: string }
+        Returns: boolean
+      }
       publish_scheduled_posts: { Args: never; Returns: number }
+      review_queue: {
+        Args: never
+        Returns: {
+          author_deleted: boolean
+          author_name: string
+          category: string
+          content: string
+          copyright_check_notes: string | null
+          copyright_check_status: string
+          copyright_checked_at: string | null
+          copyright_declaration: Json | null
+          cover_image_url: string | null
+          created_at: string
+          editorial_edition_id: string | null
+          excerpt: string
+          id: string
+          podcast_duration: string | null
+          podcast_kind: string | null
+          podcast_url: string | null
+          published_at: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          scheduled_for: string | null
+          slug: string
+          special_issue_id: string | null
+          status: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       app_role:
