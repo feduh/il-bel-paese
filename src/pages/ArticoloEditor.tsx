@@ -455,7 +455,7 @@ const ArticoloEditor = () => {
       setEditingId(inserted.id);
       setCurrentStatus("draft");
       if (targetStatus !== "draft") {
-        const updates: Record<string, unknown> = { status: targetStatus, scheduled_for: scheduledIso };
+        const updates: { status: "scheduled" | "published"; scheduled_for: string | null; published_at?: string } = { status: targetStatus, scheduled_for: scheduledIso };
         if (targetStatus === "published") updates.published_at = new Date().toISOString();
         const { error: upErr } = await supabase.from("blog_posts").update(updates).eq("id", inserted.id);
         if (upErr) {
