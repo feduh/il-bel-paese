@@ -430,8 +430,11 @@ const ArticoloEditor = () => {
         author_name: authorName,
         user_id: user.id,
         slug,
-        status: targetStatus,
-        scheduled_for: scheduledIso,
+        // Always create as draft first: authors may only INSERT drafts (RLS);
+        // the transition to scheduled/published goes through UPDATE, where
+        // the server-side review-window rules apply.
+        status: "draft",
+        scheduled_for: null,
         published_at: scheduledIso ?? new Date().toISOString(),
         ...copyrightPayloadForDb,
       };
@@ -444,12 +447,25 @@ const ArticoloEditor = () => {
 
         .select("id")
         .maybeSingle();
-      setSubmitting(false);
-      if (error) {
-        setGlobalError(error.message);
+      if (error || !inserted?.id) {
+        setSubmitting(false);
+        setGlobalError(error?.message || "Impossibile salvare l'articolo. Riprova.");
         return;
       }
-      if (submissionIdParam && inserted?.id) {
+      setEditingId(inserted.id);
+      setCurrentStatus("draft");
+      if (targetStatus !== "draft") {
+        const updates: { status: "scheduled" | "published"; scheduled_for: string | null; published_at?: string } = { status: targetStatus, scheduled_for: scheduledIso };
+        if (targetStatus === "published") updates.published_at = new Date().toISOString();
+        const { error: upErr } = await supabase.from("blog_posts").update(updates).eq("id", inserted.id);
+        if (upErr) {
+          setSubmitting(false);
+          setGlobalError(`L'articolo è stato salvato come bozza, ma l'invio non è riuscito: ${upErr.message}`);
+          return;
+        }
+      }
+      setSubmitting(false);
+      if (submissionIdParam) {
         await supabase
           .from("editorial_submissions")
           .update({ status: "converted", converted_post_id: inserted.id })
