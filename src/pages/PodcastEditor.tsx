@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeFunction } from "@/lib/invokeFunction";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft,
@@ -13,7 +12,6 @@ import {
   PlayCircle,
   Headphones,
   Link as LinkIcon,
-  Sparkles,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import SEO from "@/components/SEO";
@@ -47,8 +45,6 @@ const PodcastEditor = () => {
   const [currentStatus, setCurrentStatus] =
     useState<"draft" | "pending" | "scheduled" | "published">("draft");
   const [editingId, setEditingId] = useState<string | null>(id ?? null);
-  const [extracting, setExtracting] = useState(false);
-  const [extractMsg, setExtractMsg] = useState("");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
@@ -149,39 +145,6 @@ const PodcastEditor = () => {
     return arr;
   }, []);
   const todayIso = new Date().toISOString().slice(0, 10);
-
-  const extractCover = async () => {
-    if (!form.podcastUrl.trim()) {
-      setExtractMsg("Inserisci prima un URL.");
-      return;
-    }
-    setExtracting(true);
-    setExtractMsg("");
-    const { data, error } = await invokeFunction<{
-      cover_url?: string;
-      kind?: PodcastKind;
-      title?: string;
-      author?: string;
-      error?: string;
-    }>("extract-podcast-cover", { url: form.podcastUrl.trim() });
-    setExtracting(false);
-    if (error || !data) {
-      setExtractMsg(error || "Estrazione non riuscita.");
-      return;
-    }
-    if (data.error) {
-      setExtractMsg(data.error);
-      return;
-    }
-    setForm((f) => ({
-      ...f,
-      coverImageUrl: data.cover_url || f.coverImageUrl,
-      podcastKind: data.kind || f.podcastKind,
-      title: !f.title && data.title ? data.title : f.title,
-      guest: !f.guest && data.author ? data.author : f.guest,
-    }));
-    setExtractMsg(data.cover_url ? "Copertina estratta." : "Nessuna copertina trovata.");
-  };
 
   const validate = (mode: "draft" | "publish" | "schedule"): boolean => {
     const e: Record<string, string> = {};
@@ -365,20 +328,11 @@ const PodcastEditor = () => {
                   } bg-background font-body text-sm focus:outline-none focus:ring-2 focus:ring-ring`}
                 />
               </div>
-              <button
-                type="button"
-                onClick={extractCover}
-                disabled={extracting || !form.podcastUrl.trim()}
-                className="inline-flex items-center gap-2 px-3 py-2.5 rounded-md bg-secondary text-secondary-foreground text-sm font-body font-medium hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
-              >
-                {extracting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                Estrai copertina
-              </button>
             </div>
             <FieldError message={errs.podcastUrl} />
-            {extractMsg && (
-              <p className="mt-1 text-xs font-body text-muted-foreground">{extractMsg}</p>
-            )}
+            <p className="mt-1 text-xs font-body text-muted-foreground">
+              Carica la copertina qui sotto: il sito non contatta le piattaforme dei podcast.
+            </p>
           </div>
 
           {/* Type + Duration */}

@@ -1,0 +1,8 @@
+[Unit]
+Description=Il Bel Paese - backup del database e dei file
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ilbelpaese/repo/deploy/server/backup.sh

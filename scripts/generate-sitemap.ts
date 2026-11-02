@@ -1,9 +1,9 @@
-// Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml.
+// Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml and public/robots.txt.
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 
-const BASE_URL = "https://il-bel-paese.lovable.app";
+const BASE_URL = (process.env.VITE_SITE_URL || "https://il-bel-paese.lovable.app").replace(/\/$/, "");
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -103,7 +103,20 @@ function generate(entries: SitemapEntry[]) {
   ].join("\n");
 }
 
+const robots = [
+  "User-agent: *",
+  "Allow: /",
+  "Disallow: /area-personale",
+  "Disallow: /login",
+  "Disallow: /password-dimenticata",
+  "Disallow: /reset-password",
+  "",
+  `Sitemap: ${BASE_URL}/sitemap.xml`,
+  "",
+].join("\n");
+
 (async () => {
+  writeFileSync(resolve("public/robots.txt"), robots);
   try {
     const dynamic = await fetchDynamicEntries();
     const all = [...staticEntries, ...dynamic];

@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeFunction } from "@/lib/invokeFunction";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Save, Send, Loader2, Check, ChevronDown, CalendarClock, ShieldCheck, ShieldAlert, Eye } from "lucide-react";
@@ -82,7 +81,6 @@ const ArticoloEditor = () => {
     rightsConfirmed: false,
   });
   const [copyrightOpen, setCopyrightOpen] = useState(false);
-  const [copyrightChecking, setCopyrightChecking] = useState(false);
   const [copyrightResult, setCopyrightResult] = useState<{ status: "ok" | "blocked"; notes: string } | null>(null);
 
   const [form, setForm] = useState({
@@ -345,43 +343,9 @@ const ArticoloEditor = () => {
         setCopyrightOpen(true);
         return;
       }
-      setCopyrightChecking(true);
-      try {
-        const { data: checkData, error: checkErr } = await invokeFunction<{
-          status: "ok" | "blocked";
-          notes?: string;
-          error?: string;
-        }>("copyright-check", {
-          title: parsed.data.title,
-          excerpt: parsed.data.excerpt,
-          content: parsed.data.content,
-          coverImageUrl: parsed.data.coverImageUrl || null,
-          declaration: copyright,
-        });
-        setCopyrightChecking(false);
-        if (checkErr) {
-          setGlobalError(`Verifica copyright non disponibile: ${checkErr}`);
-          return;
-        }
-        const result = checkData;
-        if (!result || result.status !== "ok") {
-          setCopyrightResult({ status: "blocked", notes: result?.notes || result?.error || "Verifica non superata." });
-          setGlobalError("Verifica copyright NON superata. Modifica il contenuto o la dichiarazione e riprova.");
-          setCopyrightOpen(true);
-          return;
-        }
-        setCopyrightResult({ status: "ok", notes: result.notes || "" });
-        copyrightPayloadForDb = {
-          copyright_declaration: copyright,
-          copyright_check_status: "ok",
-          copyright_check_notes: result.notes || null,
-          copyright_checked_at: new Date().toISOString(),
-        };
-      } catch (e) {
-        setCopyrightChecking(false);
-        setGlobalError(`Errore verifica copyright: ${e instanceof Error ? e.message : "ignoto"}`);
-        return;
-      }
+      // L'esito della verifica lo calcola il database dalla dichiarazione (trigger validate_blog_post_copyright):
+      // il browser invia solo la dichiarazione, mai lo stato "ok".
+      copyrightPayloadForDb = { copyright_declaration: copyright };
     }
 
     setSubmitting(true);
@@ -689,7 +653,7 @@ const ArticoloEditor = () => {
                 )}
                 Dichiarazione copyright
                 {copyrightResult?.status === "ok" && (
-                  <span className="text-xs text-secondary font-normal">— verificata</span>
+                  <span className="text-xs text-secondary font-normal">— compilata</span>
                 )}
                 {copyrightResult?.status === "blocked" && (
                   <span className="text-xs text-destructive font-normal">— bloccata</span>
@@ -700,7 +664,7 @@ const ArticoloEditor = () => {
             {copyrightOpen && (
               <div className="mt-3 p-4 rounded-md border border-input bg-muted/30 space-y-4">
                 <p className="text-xs font-body text-muted-foreground">
-                  Obbligatoria per inviare o programmare la pubblicazione. La verifica AI può bloccare l'articolo se rileva problemi di copyright (watermark, plagio evidente).
+                  Obbligatoria per inviare o programmare la pubblicazione. Con l'invio dichiari di avere i diritti su testi e immagini; la redazione può fermare l'articolo durante le 24 ore di revisione.
                 </p>
 
                 <div>
@@ -902,11 +866,6 @@ const ArticoloEditor = () => {
             {currentStatus === "scheduled" && scheduleDate && scheduleTime && (
               <span className="text-xs font-body text-sky-600 inline-flex items-center gap-1">
                 <CalendarClock size={12} /> Programmato per {scheduleDate} {scheduleTime}
-              </span>
-            )}
-            {copyrightChecking && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-body text-muted-foreground" aria-live="polite">
-                <Loader2 size={12} className="animate-spin" /> Verifica copyright in corso…
               </span>
             )}
             {autoSaveState !== "idle" ? (

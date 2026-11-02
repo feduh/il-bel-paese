@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dati esportati per la migrazione: contengono dati personali, non vanno mai nel repository
+migration/data/
+
+# Funzioni impacchettate: si rigenerano con node scripts/bundle-functions.mjs
+deploy/functions/
