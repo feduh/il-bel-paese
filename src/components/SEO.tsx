@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { SITE_URL } from "@/lib/site";
 
 type SEOProps = {
   title: string;
@@ -10,7 +11,6 @@ type SEOProps = {
 };
 
 const SITE_NAME = "Il Bel Paese";
-const SITE_URL = "https://il-bel-paese.lovable.app";
 const DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
 const JSONLD_ID = "ibp-jsonld";
 

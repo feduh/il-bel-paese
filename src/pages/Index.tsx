@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import SEO from "@/components/SEO";
+import { SITE_URL } from "@/lib/site";
 import CountUp from "@/components/CountUp";
 import DroneHero from "@/components/home/DroneHero";
 import Marquee from "@/components/home/Marquee";
@@ -69,7 +70,7 @@ const Index = () => {
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Il Bel Paese",
-          url: "https://il-bel-paese.lovable.app",
+          url: SITE_URL,
           description: t("home.lead"),
           inLanguage: "it-IT",
         }}

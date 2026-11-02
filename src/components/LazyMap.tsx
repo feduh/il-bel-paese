@@ -263,10 +263,10 @@ const LazyMap = ({
         style={{ height: "100%", width: "100%" }}
         className="ibp-map"
       >
-        {/* OpenStreetMap standard tiles: gratuiti, senza API key (CARTO Voyager ora richiede una chiave) */}
+        {/* Tessere della mappa: di default OpenStreetMap; VITE_MAP_TILES_URL permette di servirle dal proprio server */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url={import.meta.env.VITE_MAP_TILES_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png"}
           maxZoom={19}
         />
         <ZoomControl position="bottomright" />

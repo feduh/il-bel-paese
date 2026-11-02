@@ -7,6 +7,8 @@ import { realitySchema, fieldErrors, type FieldErrors } from "@/lib/validation";
 import FieldError from "@/components/FieldError";
 import { REALITY_CATEGORIES } from "@/lib/categories";
 
+const GEOCODING_ENABLED = import.meta.env.VITE_ENABLE_GEOCODING === "true";
+
 type RealityType = "con-sede" | "nomade" | "scomparsa";
 type ConfirmedStatus = "pendente" | "confermato" | "storico";
 
@@ -111,7 +113,8 @@ const RealityForm = ({
     if (addrSkipFetch.current) { addrSkipFetch.current = false; return; }
     if (addrDebounce.current) window.clearTimeout(addrDebounce.current);
     const q = address.trim();
-    if (q.length < 3) { setAddrSuggestions([]); setAddrOpen(false); return; }
+    // Suggerimenti di indirizzo (Photon/Komoot, servizio esterno): solo se la geocodifica è attivata.
+    if (!GEOCODING_ENABLED || q.length < 3) { setAddrSuggestions([]); setAddrOpen(false); return; }
     addrDebounce.current = window.setTimeout(async () => {
       try {
         setAddrLoading(true);
@@ -209,7 +212,8 @@ const RealityForm = ({
     errs[k] ? { "aria-invalid": true as const, "aria-describedby": `err-${k}` } : {};
 
   const runGeocode = async () => {
-    if (!address || !city) return;
+    // Geocodifica disattivata di default: contatterebbe un servizio esterno (Nominatim).
+    if (!GEOCODING_ENABLED || !address || !city) return;
     setGeocoding(true);
     setGeocoded(false);
     setError("");
@@ -443,13 +447,17 @@ const RealityForm = ({
       <div className="rounded-md border border-border bg-muted/30 p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium flex items-center gap-2">
-            <MapPin size={14} /> Geocodifica automatica
+            <MapPin size={14} /> {GEOCODING_ENABLED ? "Geocodifica automatica" : "Posizione"}
             {geocoding && <Loader2 size={14} className="animate-spin" />}
             {geocoded && <Check size={14} className="text-secondary" />}
           </p>
-          <button type="button" onClick={runGeocode} className="text-xs underline text-muted-foreground hover:text-foreground">
-            Ricalcola
-          </button>
+          {GEOCODING_ENABLED ? (
+            <button type="button" onClick={runGeocode} className="text-xs underline text-muted-foreground hover:text-foreground">
+              Ricalcola
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Inserisci CAP, regione e coordinate a mano</span>
+          )}
         </div>
         <div className="grid md:grid-cols-4 gap-3">
           <div>

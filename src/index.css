@@ -2,15 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============ Stack Sans Notch (variable, all weights 200–700) ============ */
-@font-face {
-  font-family: 'Stack Sans Notch';
-  src: url('/__l5e/assets-v1/a5728466-7662-4fe2-8669-5267dda0698a/StackSansNotch-Variable.woff2') format('woff2-variations'),
-       url('/__l5e/assets-v1/a5728466-7662-4fe2-8669-5267dda0698a/StackSansNotch-Variable.woff2') format('woff2');
-  font-weight: 200 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* Font del marchio e del testo: file inclusi nel sito (pacchetti @fontsource, importati in main.tsx),
+   nessun download da Google Fonts o dal CDN di Lovable. */
 
 @layer base {
   :root {
@@ -56,9 +49,9 @@
     --sidebar-ring: 257 71% 51%;
 
     /* Tipografia: display brutalist per H1–H3, Inter neutro per body / form / H4–H6 */
-    --font-display: 'Stack Sans Notch', 'Space Grotesk', system-ui, sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'Inter', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-display: 'Stack Sans Notch Variable', 'Stack Sans Notch', 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Inter Variable', 'Inter', ui-monospace, SFMono-Regular, Menlo, monospace;
 
     /* Brutalist shadow: offset duro, no blur */
     --shadow-brutalist: 4px 4px 0 0 hsl(var(--foreground));
