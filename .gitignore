@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dati esportati per la migrazione: contengono dati personali, non vanno mai nel repository
+migration/data/
