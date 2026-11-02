@@ -1,0 +1,84 @@
+# Il Bel Paese — modifiche al docker-compose ufficiale di Supabase self-hosted.
+#
+# Si usa insieme ai file ufficiali (supabase/supabase, cartella docker/, versione fissata nel piano):
+#   cd /opt/supabase/docker
+#   docker compose -f docker-compose.yml -f /opt/ilbelpaese/repo/deploy/server/docker-compose.override.yml up -d
+#
+# Cosa cambia rispetto all'installazione standard:
+#   - Caddy serve il sito e l'API sullo stesso dominio, con HTTPS automatico
+#   - Studio (pannello di amministrazione) NON è pubblico: si raggiunge solo con un tunnel SSH
+#   - database e pooler ascoltano solo su 127.0.0.1, mai su internet
+#   - niente imgproxy (ridimensionamento immagini): il sito non lo usa
+#   - le funzioni sono quelle impacchettate da scripts/bundle-functions.mjs, senza download a runtime
+#   - la rete dei container ha indirizzi fissi, così il firewall (firewall.sh) può limitare chi esce su internet
+#   - l'assistente AI di Studio è spento (nessuna chiave OpenAI)
+#
+# Richiede Docker Compose 2.24 o successivo (per !reset e !override).
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+services:
+  caddy:
+    container_name: ilbelpaese-caddy
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      api-gw:
+        condition: service_healthy
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - /opt/ilbelpaese/repo/deploy/server/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/ilbelpaese/site:/srv/site:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default:
+        # Unico container autorizzato dal firewall a uscire su 80/443 (rinnovo del certificato HTTPS)
+        ipv4_address: 172.30.0.250
+
+  api-gw:
+    # L'API si raggiunge solo attraverso Caddy
+    ports: !reset []
+
+  studio:
+    environment:
+      OPENAI_API_KEY: ""
+    # Solo sulla macchina stessa: dal tuo computer si apre con
+    #   ssh -L 3000:127.0.0.1:3000 utente@server   e poi http://localhost:3000
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  storage:
+    depends_on: !override
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    environment:
+      ENABLE_IMAGE_TRANSFORMATION: "false"
+
+  imgproxy:
+    # Non viene avviato (il profilo "disabled" non si attiva mai)
+    profiles: ["disabled"]
+
+  functions:
+    volumes: !override
+      - /opt/ilbelpaese/functions:/home/deno/functions:ro,z
+
+  supavisor:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POOLER_PROXY_PORT_TRANSACTION}:6543"
+
+volumes:
+  caddy_data:
+  caddy_config:

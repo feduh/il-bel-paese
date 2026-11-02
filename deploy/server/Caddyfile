@@ -1,0 +1,46 @@
+# Il Bel Paese — sito e API sullo stesso dominio.
+# SITE_DOMAIN e ACME_EMAIL arrivano dal file .env di Supabase (vedi supabase.env.example).
+
+{
+	email {$ACME_EMAIL}
+	# API di amministrazione di Caddy spenta: per cambiare configurazione si riavvia il container
+	admin off
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	# API di Supabase (login, dati, file, realtime, funzioni) → gateway interno
+	@api path /auth/v1/* /rest/v1/* /realtime/v1/* /storage/v1/* /functions/v1/*
+	handle @api {
+		reverse_proxy api-gw:8000
+	}
+
+	# Studio e le API di amministrazione non sono mai esposte
+	@blocked path /pg/* /graphql/v1* /mcp* /sso/*
+	handle @blocked {
+		respond 404
+	}
+
+	# Sito statico (cartella dist della build); le rotte dell'app ricadono su index.html
+	handle {
+		root * /srv/site
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+	}
+}
+
+# Il dominio con www rimanda a quello principale
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}

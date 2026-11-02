@@ -1,0 +1,14 @@
+[Unit]
+Description=Il Bel Paese - firewall in uscita per i container
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/ilbelpaese/repo/deploy/server/firewall.sh on
+ExecStop=/opt/ilbelpaese/repo/deploy/server/firewall.sh off
+
+[Install]
+WantedBy=multi-user.target docker.service
