@@ -6,9 +6,11 @@
 // Uso: node scripts/bundle-functions.mjs   →   deploy/functions/<nome>/index.ts
 import { build } from "esbuild";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(import.meta.dirname, "..");
+// fileURLToPath invece di import.meta.dirname: funziona anche con Node 18 (quello di Ubuntu 24.04)
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "deploy/functions");
 const shimCors = join(root, "deploy/functions-src/shims/cors.ts");
 
